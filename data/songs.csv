@@ -19,3 +19,5 @@ id,title,artist,genre,mood,energy,tempo_bpm,valence,acousticness,popularity,dura
 18,Country Roads,Sage Hayes,country,soulful,0.58,102,0.72,0.56,0.93,242
 19,Petal,Ariana Grande,pop,romantic,0.68,96,0.79,0.32,0.90,203
 20,Blue Moon,Elena West,indie pop,dreamy,0.71,112,0.76,0.41,0.74,216
+21,California Dreaming,Coastline Sky,folk,dreamy,0.52,108,0.58,0.62,0.86,228
+22,How You Like That,BLACKPINK,pop,intense,0.90,130,0.62,0.06,0.94,182

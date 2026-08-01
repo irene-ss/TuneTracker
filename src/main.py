@@ -1,9 +1,15 @@
 """
 Command line runner for the Music Recommender Simulation.
 
-Demonstrates the Strategy pattern: the same songs and the same user profile are
-ranked by interchangeable strategies (Genre-First, Mood-First, Energy-Focused).
-Recommender never knows which strategy is active — it just calls strategy.score().
+Demonstrates two independent pieces working side by side:
+
+1. Retrieval (retriever.py) — a free-text query is matched against song
+   descriptions via TF-IDF + cosine similarity. Text-based, ignores the profile.
+2. Scoring (recommender.py) — the structured UserProfile is ranked by an
+   interchangeable strategy (Strategy pattern). Attribute-based, ignores the query.
+
+For each profile we print the retrieved docs first, then the ranked list, so you
+can see retrieval working independent of scoring.
 """
 
 from typing import Dict, List
@@ -15,6 +21,7 @@ from recommender import (
     Recommender,
     STRATEGIES,
 )
+from retriever import Retriever
 
 
 def to_song(row: Dict) -> Song:
@@ -46,9 +53,21 @@ def to_profile(prefs: Dict) -> UserProfile:
     )
 
 
+def print_retrieval(retriever: Retriever, query: str, k: int = 3) -> None:
+    """Print the top-k retrieval matches for a free-text query."""
+    print(f"  Retrieval for query: {query!r}")
+    print("  " + "-" * 58)
+    results = retriever.search(query, k=k)
+    if not results:
+        print("  (no text matches)")
+    for index, result in enumerate(results, start=1):
+        print(f"  {index}. {result.title} by {result.artist}  (similarity {result.score:.3f})")
+    print()
+
+
 def print_ranking(rec: Recommender, user: UserProfile, k: int = 5) -> None:
     """Print the top-k ranking for the recommender's current strategy."""
-    print(f"  Mode: {rec.strategy.name}")
+    print(f"  Scoring mode: {rec.strategy.name}")
     print("  " + "-" * 58)
     for index, song in enumerate(rec.recommend(user, k=k), start=1):
         score, _ = rec.strategy.score(user, song)
@@ -69,22 +88,39 @@ def choose_modes() -> List[str]:
     return list(STRATEGIES.keys())
 
 
+def choose_query() -> str:
+    """Ask for a free-text query to apply to every profile. Blank uses per-profile defaults."""
+    return input("Free-text query (Enter to use each profile's default): ").strip()
+
+
 def main() -> None:
     songs = [to_song(row) for row in load_songs("data/songs.csv")]
+    retriever = Retriever.from_json()
 
+    # Each profile pairs a structured preference dict with a default free-text query.
     profiles = [
-        ("High-Energy Pop", {"genre": "pop", "mood": "happy", "energy": 0.8}),
-        ("Chill Lofi", {"genre": "lofi", "mood": "chill", "energy": 0.4}),
-        ("Deep Intense Rock", {"genre": "rock", "mood": "intense", "energy": 0.9}),
+        ("High-Energy Pop", {"genre": "pop", "mood": "happy", "energy": 0.8},
+         "upbeat energetic pop to start the day"),
+        ("Chill Lofi", {"genre": "lofi", "mood": "chill", "energy": 0.4},
+         "calm lo-fi beats for studying and focus"),
+        ("Deep Intense Rock", {"genre": "rock", "mood": "intense", "energy": 0.9},
+         "intense heavy rock for an intense workout"),
     ]
 
     modes = choose_modes()
+    query_override = choose_query()
 
-    for profile_name, prefs in profiles:
+    for profile_name, prefs, default_query in profiles:
         user = to_profile(prefs)
+        query = query_override or default_query
+
         print(f"\n=== {profile_name} ===")
         print("=" * 60)
-        # Run each selected strategy on the SAME profile so rankings are comparable.
+
+        # 1) Retrieval first — text-based, independent of the profile/scoring.
+        print_retrieval(retriever, query, k=3)
+
+        # 2) Scoring — attribute-based ranking, one block per selected strategy.
         for mode in modes:
             rec = Recommender(songs, STRATEGIES[mode]())
             print_ranking(rec, user, k=5)
