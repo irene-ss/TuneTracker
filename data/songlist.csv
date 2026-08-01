@@ -1,0 +1,21 @@
+id,title,artist,genre,mood,energy,tempo_bpm,valence,acousticness,popularity,duration
+1,Sunrise City,Neon Echo,pop,happy,0.82,118,0.84,0.18,0.78,210
+2,Midnight Coding,LoRoom,lofi,chill,0.42,78,0.56,0.71,0.54,185
+3,Storm Runner,Voltline,rock,intense,0.91,152,0.48,0.10,0.82,195
+4,Library Rain,Paper Lanterns,lofi,chill,0.35,72,0.60,0.86,0.49,220
+5,Gym Hero,Max Pulse,pop,intense,0.93,132,0.77,0.05,0.88,180
+6,Spacewalk Thoughts,Orbit Bloom,ambient,chill,0.28,60,0.65,0.92,0.44,240
+7,Coffee Shop Stories,Slow Stereo,jazz,relaxed,0.37,90,0.71,0.89,0.57,230
+8,Night Drive Loop,Neon Echo,synthwave,moody,0.75,110,0.49,0.22,0.64,200
+9,Focus Flow,LoRoom,lofi,focused,0.40,80,0.59,0.78,0.61,175
+10,Rooftop Lights,Indigo Parade,indie pop,happy,0.76,124,0.81,0.35,0.69,205
+11,Stateside,Zara Larson,pop,bright,0.86,122,0.88,0.20,0.91,212
+12,I Just Might,Bruno Mars,pop,playful,0.79,116,0.83,0.22,0.87,198
+13,Golden Hour Waltz,Orchestra Nova,classical,dreamy,0.34,72,0.65,0.95,0.48,260
+14,Forest Lanterns,Willow Road,folk,romantic,0.48,88,0.75,0.82,0.52,238
+15,Beat Street,Rhythm Cartel,hip-hop,party,0.88,98,0.79,0.10,0.85,190
+16,Island Sun,The Marleys,reggae,calm,0.62,85,0.70,0.65,0.63,225
+17,Shadow Throne,Iron Veil,metal,melancholic,0.89,145,0.35,0.05,0.71,207
+18,Country Roads,Sage Hayes,country,soulful,0.58,102,0.72,0.56,0.93,242
+19,Petal,Ariana Grande,pop,romantic,0.68,96,0.79,0.32,0.90,203
+20,Blue Moon,Elena West,indie pop,dreamy,0.71,112,0.76,0.41,0.74,216
