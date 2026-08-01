@@ -1,0 +1,13 @@
+flowchart TD
+    Q["User query / UserProfile"] --> R["TF-IDF Retriever<br/>rank song descriptions by cosine similarity"]
+    R --> TOPN["Top-N candidate songs"]
+    TOPN --> S["Scorer<br/>score_song / recommend_songs<br/>genre, mood, energy, acoustic"]
+    S --> RANK["Ranked results<br/>song + score + reasons"]
+
+    RANK --> KEY{"ANTHROPIC_API_KEY set?"}
+
+    KEY -->|Yes| E["LLM Explainer<br/>retrieved context + scores<br/>&rarr; natural-language output"]
+    KEY -->|No| FB["Fallback Explainer<br/>template from score reasons<br/>(offline, deterministic)"]
+
+    E --> OUT["Output<br/>recommendations + explanations"]
+    FB --> OUT

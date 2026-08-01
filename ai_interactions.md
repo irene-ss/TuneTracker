@@ -32,12 +32,7 @@
 
 **Which design pattern did you use?**
 
-<!-- e.g., Strategy, Factory, Observer, etc. -->
-
-**How did AI help you brainstorm or implement it?**
-
-<!-- Describe the conversation or suggestions that led to your decision -->
-
-**How does the pattern appear in your final code?**
-
-<!-- Point to the relevant class or method -->
+Strategy pattern. My `Scorer`/`score_song` logic had one fixed weighting formula
+(genre +1.5, mood +1.4, energy ×1.5, acoustic +0.5). I wanted 2–3 interchangeable
+ranking strategies — Genre-First, Mood-First, Energy-Focused — that a user can pick
+at runtime, without `Recommender` knowing which one is active.
