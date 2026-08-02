@@ -1,249 +1,98 @@
-# 🎵 Music Recommender Simulation
+# 🎵 TuneTracker
 
-## Project Summary
+**A content-based music recommender with free-text retrieval and grounded, AI-generated explanations.**
 
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
-Replace this paragraph with your own summary of what your version does.
+TuneTracker takes a listener's taste profile *and* a plain-English query, then does three things: retrieves songs whose descriptions match the query (TF-IDF + cosine similarity), ranks the catalog against the profile using a user-selectable scoring strategy, and generates a one-sentence explanation of why the top pick fits. It matters because it demonstrates, in a small and fully reproducible package, the core moves of a modern recommender: content-based scoring, retrieval-augmented generation (RAG), a swappable ranking policy, and a graceful degradation path when an external AI service isn't available.
 
 ---
 
-## How The System Works
+## Original Project (Modules 1–3)
 
-Explain your design in plain language.
+This project began as the **Music Recommender Simulation**, a content-based recommender built in Modules 1–3. Its original goal was to represent songs and a user "taste profile" as data and score each song with a **single fixed weighting formula** — rewarding a genre match, a mood match, and closeness in energy — then return the top matches with human-readable reasons. It worked on a small local CSV catalog and could rank songs for a handful of hardcoded profiles (e.g. High-Energy Pop, Chill Lofi, Deep Intense Rock).
 
-Some prompts to answer:
-
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
-
-You can include a simple diagram or bullet list if helpful.
+TuneTracker extends that foundation with three interchangeable ranking strategies, free-text retrieval over song descriptions, AI-generated explanations with a safe fallback, structured logging, a test suite, and a Streamlit UI.
 
 ---
 
-Real‑world recommendation engines combine collaborative filtering (learning from other users’ behavior) and content‑based filtering (analyzing song attributes like mood, tempo, or energy). Platforms track signals such as likes, skips, replays, playlist additions, and listening duration to understand evolving taste. In this simplified version, we focus entirely on content‑based filtering: each song is scored based on how well its mood, genre, and energy match the user’s preferences, with mood carrying the strongest influence. This makes the system easy to understand while still reflecting how emotional tone often drives real listening choices.
-formula used: 1.6⋅1[genre matches]+ 1.4⋅1[mood matches]+ 1.5⋅(1−∣energy of song − energy of user∣)This formula balances genre and mood as the primary signals while still rewarding energy similarity.
-## Architecture
+## Architecture Overview
 
-TuneTracker is a content-based recommender with a retrieval + explanation layer on
-top. The pipeline has four stages, each in its own module under `src/`:
-
-1. **Scoring — `recommender.py`.** `Song` and `UserProfile` dataclasses plus a
-   `Recommender` that ranks songs against a profile. Scoring uses the **Strategy
-   pattern**: a `RankingStrategy` interface with three interchangeable strategies —
-   `GenreFirstStrategy`, `MoodFirstStrategy`, and `EnergyFocusedStrategy` — each a
-   different weighting of genre / mood / energy. The `Recommender` never knows which
-   strategy is active; it just calls `strategy.score()`.
-2. **Retrieval — `retriever.py`.** A `Retriever` that indexes each song's text
-   description (`data/song_descriptions.json`) with scikit-learn's `TfidfVectorizer`
-   and returns the top-k matches for a free-text query by cosine similarity.
-   Dependency-light and fully local (no embedding API), so it's reproducible on any
-   clone.
-3. **Explanation — `explainer.py`.** `generate_explanation()` turns a retrieved
-   description plus a song's numeric scoring reasons into one grounded sentence. It
-   tries an LLM (Claude) first and falls back to a template that still quotes the
-   retrieved text when there's no API key or the call fails.
-4. **Logging — `logging_config.py`.** Every query, retrieval, fallback, and error is
-   written to `logs/app.log`.
-
-Two front ends consume the pipeline:
-
-- **`src/main.py`** — a CLI that runs retrieval and scoring side by side.
-- **`app.py`** — a Streamlit UI with a mode selector, a query box, and a display of
-  retrieved context + ranked results + explanation (pipeline cached with
-  `st.cache_resource`).
-
-Tests live in `tests/` (`test_recommender.py`, `test_retriever.py`,
-`test_explainer.py`). See `diagrams/architecture.mmd` for a diagram.
+The system is a four-stage pipeline; each stage is an independent module under `src/`, and two front ends (a CLI and a Streamlit app) drive it.
 
 ```
 free-text query ─► Retriever (TF-IDF)      ─► retrieved context
 taste profile   ─► Recommender + Strategy  ─► ranked results ─► Explainer ─► grounded sentence
+                                                                    ▲
+                                          all events (query / retrieval / fallback / error)
+                                                        └─► logs/app.log
 ```
+
+| Stage | Module | Responsibility |
+|-------|--------|----------------|
+| **Scoring** | `recommender.py` | `Song` / `UserProfile` dataclasses and a `Recommender` that ranks the catalog. Uses the **Strategy pattern**: a `RankingStrategy` interface with three concrete strategies (`GenreFirstStrategy`, `MoodFirstStrategy`, `EnergyFocusedStrategy`). The `Recommender` never knows which is active — it just calls `strategy.score()`. |
+| **Retrieval** | `retriever.py` | Indexes each song's text description (`data/song_descriptions.json`) with scikit-learn's `TfidfVectorizer` and returns the top-k matches for a free-text query by cosine similarity. Fully local — no embedding API. |
+| **Explanation** | `explainer.py` | Turns a retrieved description + a song's numeric scoring reasons into one grounded sentence. Tries Claude first; falls back to a template that still quotes the retrieved text. |
+| **Logging** | `logging_config.py` | Records every query, retrieval, fallback, and error to `logs/app.log`. |
+
+Front ends: `src/main.py` (CLI, runs retrieval and scoring side by side) and `app.py` (Streamlit UI with a mode selector, query box, and results display, pipeline cached via `st.cache_resource`). A diagram is in `diagrams/architecture.mmd`.
 
 ---
 
-## Getting Started
+## Setup Instructions
 
-### Setup
-
-1. Create a virtual environment (optional but recommended):
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate      # Mac or Linux
-   .venv\Scripts\activate         # Windows
-   ```
-
-2. Install dependencies (includes `scikit-learn` for retrieval; `anthropic` is
-   optional and only used for the LLM explanation path):
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **(Optional) Set an API key for LLM explanations.** Without it, the explainer
-   automatically uses a grounded template — no setup required.
-
-   ```bash
-   export ANTHROPIC_API_KEY=sk-ant-...      # Mac or Linux
-   $env:ANTHROPIC_API_KEY = "sk-ant-..."    # Windows PowerShell
-   ```
-
-### Running the app
-
-Run the CLI (from the project root, so `data/` resolves):
+**1. (Optional) Create and activate a virtual environment:**
 
 ```bash
-python src/main.py
+python -m venv .venv
+source .venv/bin/activate      # Mac or Linux
+.venv\Scripts\activate         # Windows
 ```
 
-Run the Streamlit UI:
+**2. Install dependencies** (includes `scikit-learn` for retrieval; `anthropic` is optional and only used for the LLM explanation path):
 
 ```bash
-python -m streamlit run app.py
+pip install -r requirements.txt
 ```
 
-> **Tip:** use `python -m streamlit ...` (not just `streamlit ...`). If you have more
-> than one Python installed, the bare `streamlit` command may launch under a different
-> interpreter that doesn't have the dependencies, giving a `ModuleNotFoundError`.
-> Running through `python -m` guarantees the app and its packages share one interpreter.
-
-### Running Tests
+**3. (Optional) Set an API key for LLM explanations.** Without it, the explainer automatically uses a grounded template — no setup required.
 
 ```bash
-python -m pytest
+export ANTHROPIC_API_KEY=sk-ant-...      # Mac or Linux
+$env:ANTHROPIC_API_KEY = "sk-ant-..."    # Windows PowerShell
 ```
 
-Tests cover per-strategy scoring and rank determinism (`test_recommender.py`),
-retrieval relevance and empty-query handling (`test_retriever.py`), and the
-explainer's fallback behavior (`test_explainer.py`).
+**4. Run it** (from the project root, so `data/` resolves):
+
+```bash
+python src/main.py                  # CLI
+python -m streamlit run app.py      # Streamlit UI
+python -m pytest                    # test suite
+```
+
+> **Tip:** use `python -m streamlit ...`, not the bare `streamlit ...`. If you have more than one Python installed, the bare command can launch under a different interpreter that lacks the dependencies (a `ModuleNotFoundError`). Running through `python -m` keeps the app and its packages on one interpreter.
 
 ---
 
-## Sample Recommendation Output
+## Sample Interactions
 
-Paste a sample of your recommender's output here as a text block so a reader can see what it produces:
+### 1. Free-text retrieval (query → retrieved context)
+
+Retrieval is text-based and independent of the taste profile. The same catalog answers two different queries sensibly:
 
 ```
-Loaded songs: 18
-                   
-Top recommendations
-============================================================
-1. Sunrise City by Neon Echo
-   Score   : 4.37
-   Reasons : Genre match +1.5; Mood match +1.4; Energy similarity +1.47
-------------------------------------------------------------
-2. I Just Might by Bruno Mars
-   Score   : 2.98
-   Reasons : Genre match +1.5; Energy similarity +1.48
-------------------------------------------------------------
-3. Stateside by Zara Larson
-   Score   : 2.91
-   Reasons : Genre match +1.5; Energy similarity +1.41
-------------------------------------------------------------
-4. Rooftop Lights by Indigo Parade
-   Score   : 2.84
-   Reasons : Mood match +1.4; Energy similarity +1.44
-------------------------------------------------------------
-5. Gym Hero by Max Pulse
-   Score   : 2.80
-   Reasons : Genre match +1.5; Energy similarity +1.30
-------------------------------------------------------------
+QUERY: "calm lo-fi beats for studying"
+   0.219  Midnight Coding - LoRoom
+   0.191  Library Rain - Paper Lanterns
+   0.146  Focus Flow - LoRoom
+
+QUERY: "high energy workout"
+   0.211  Gym Hero - Max Pulse
+   0.137  Beat Street - Rhythm Cartel
+   0.129  Sunrise City - Neon Echo
 ```
 
------------------------------------
-OUTPUT OF DIVERSE PROFILE 
-Loaded songs: 20
+### 2. Mode comparison (same profile, three strategies)
 
-=== High-Energy Pop ===
-Top recommendations
-============================================================
-1. Sunrise City by Neon Echo
-   Score   : 4.37
-   Reasons : Genre match +1.5; Mood match +1.4; Energy similarity +1.47
-------------------------------------------------------------
-2. I Just Might by Bruno Mars
-   Score   : 2.98
-   Reasons : Genre match +1.5; Energy similarity +1.48
-------------------------------------------------------------
-3. Stateside by Zara Larson
-   Score   : 2.91
-   Reasons : Genre match +1.5; Energy similarity +1.41
-------------------------------------------------------------
-4. Rooftop Lights by Indigo Parade
-   Score   : 2.84
-   Reasons : Mood match +1.4; Energy similarity +1.44
-------------------------------------------------------------
-5. Petal by Ariana Grande
-   Score   : 2.82
-   Reasons : Genre match +1.5; Energy similarity +1.32
-------------------------------------------------------------
-
-=== Chill Lofi ===
-Top recommendations
-============================================================
-1. Midnight Coding by LoRoom
-   Score   : 4.37
-   Reasons : Genre match +1.5; Mood match +1.4; Energy similarity +1.47
-------------------------------------------------------------
-2. Library Rain by Paper Lanterns
-   Score   : 4.32
-   Reasons : Genre match +1.5; Mood match +1.4; Energy similarity +1.42
-------------------------------------------------------------
-3. Focus Flow by LoRoom
-   Score   : 3.00
-   Reasons : Genre match +1.5; Energy similarity +1.50
-------------------------------------------------------------
-4. Spacewalk Thoughts by Orbit Bloom
-   Score   : 2.72
-   Reasons : Mood match +1.4; Energy similarity +1.32
-------------------------------------------------------------
-5. Coffee Shop Stories by Slow Stereo
-   Score   : 1.46
-   Reasons : Energy similarity +1.46
-------------------------------------------------------------
-
-=== Deep Intense Rock ===
-Top recommendations
-============================================================
-1. Storm Runner by Voltline
-   Score   : 4.38
-   Reasons : Genre match +1.5; Mood match +1.4; Energy similarity +1.48
-------------------------------------------------------------
-2. Gym Hero by Max Pulse
-   Score   : 2.85
-   Reasons : Mood match +1.4; Energy similarity +1.46
-------------------------------------------------------------
-3. Shadow Throne by Iron Veil
-   Score   : 1.48
-   Reasons : Energy similarity +1.48
-------------------------------------------------------------
-4. Beat Street by Rhythm Cartel
-   Score   : 1.47
-   Reasons : Energy similarity +1.47
-------------------------------------------------------------
-5. Stateside by Zara Larson
-   Score   : 1.44
-   Reasons : Energy similarity +1.44
-----------------------------------------------------------
-
-### Mode comparison — same profile, three strategies
-
-The Strategy pattern lets a user switch ranking modes at runtime. Running the
-**same** "High-Energy Pop" profile (`genre=pop, mood=happy, energy=0.8`) through all
-three strategies reorders the results — watch how #2 and #3 change while the
-top pick stays fixed:
+Switching the ranking mode reorders the results for the **same** High-Energy Pop profile (`genre=pop, mood=happy, energy=0.8`). The top pick holds, but the runners-up shift:
 
 ```
 --- Genre-First (genre weighted 2.0) ---
@@ -262,51 +111,52 @@ top pick stays fixed:
 3. Rooftop Lights  (indie pop/happy)  score 2.90
 ```
 
-`Sunrise City` tops every mode because it matches on all three signals, but the
-runners-up shift: Genre-First rewards the other pop tracks, Mood-First pulls in a
-`happy` indie-pop song over a same-genre one, and Energy-Focused ranks almost purely
-on how close each song's energy is to the target.
+### 3. Grounded explanation (template fallback, no API key)
+
+For a `lofi / chill / energy 0.4 / prefers acoustic` profile under Energy-Focused, the top pick is *Midnight Coding*, and the explainer produces:
+
+```
+'Midnight Coding' fits because it matches your taste on genre match, mood match,
+energy similarity and acoustic preference bonus, and it's described as "A mellow
+lo-fi beat with warm, dusty textures and a relaxed late-night pulse."
+```
+
+This is the fallback path (no API key set) — note it still quotes the retrieved description, so the explanation stays grounded in real text rather than invented detail.
 
 ---
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
+## Design Decisions
+
+- **Strategy pattern for ranking.** The original project had one hardcoded formula. I refactored scoring behind a `RankingStrategy` interface so the weighting is chosen at runtime and the `Recommender` stays unaware of which strategy is active. *Trade-off:* more classes for what is currently just three different weight vectors — but it makes adding a new ranking policy (or swapping in an ML scorer later) a drop-in change instead of an edit to core logic.
+- **TF-IDF retrieval instead of embeddings.** I deliberately chose scikit-learn TF-IDF over a hosted embedding API. *Trade-off:* retrieval is lexical, not semantic (it matches on shared words, not meaning), so "study music" won't match a description that only says "focus." In exchange, the whole system is dependency-light, deterministic, and reproducible on any clone with **no API key and no network** — which matters more for a portfolio project someone else will run.
+- **LLM explanation with a mandatory fallback.** The explainer tries Claude for a natural sentence but falls back to a template on *any* failure (no key, auth error, network, empty response) — and the template still quotes the retrieved text. *Trade-off:* the template is less fluent than the LLM, but the app never breaks and never depends on a paid service to function.
+- **Separation of retrieval and scoring.** Retrieval (text) and scoring (attributes) run independently and are displayed side by side rather than fused. This keeps each mechanism debuggable and makes it obvious in the UI that they answer different questions.
+- **Centralized logging.** One `logging_config` module logs every query, retrieval, fallback, and error, so behavior is auditable after the fact instead of scattered across `print`s.
 
 ---
 
-## Experiments You Tried
+## Testing Summary
 
-Use this section to document the experiments you ran. For example:
+Full captured command outputs — a real `pytest` run, a CLI session, retrieval/explanation
+examples, and a log snippet — are in [docs/reproducible_outputs.md](docs/reproducible_outputs.md)
+(reproducible, not screenshots).
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+The suite (`python -m pytest`) has **33 tests across three files**, all green:
 
----
+- **`test_recommender.py`** — verifies exact per-strategy scores against known weight vectors, the energy term's distance scaling (and its floor at 0), the acoustic bonus, and **rank determinism** (repeated calls return the same order; ties break alphabetically by title).
+- **`test_retriever.py`** — checks retrieval relevance on a small deterministic corpus (a workout query ranks the workout song first), that zero-similarity queries return `[]`, and **empty-query handling** (`""`, whitespace, and `k=0` all return `[]`).
+- **`test_explainer.py`** — confirms the fallback runs and quotes the description when there's no key, and that an LLM failure (monkeypatched) degrades gracefully instead of crashing. These tests never hit the network.
 
-## Limitations and Risks
+**What worked:** the deterministic, local design made everything testable without mocking a service — TF-IDF and the scoring math are pure functions of their inputs.
 
-Summarize some limitations of your recommender.
+**What didn't (at first):** running the tests surfaced a real **environment bug** — the modules use flat imports, so `pytest` couldn't find them until I added a `conftest.py` that puts `src/` on the path. Separately, the Streamlit app threw `ModuleNotFoundError: sklearn` because the `streamlit` launcher was tied to a *different* Python interpreter than the one with the dependencies installed.
 
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+**What I learned:** most of the friction was environment and integration, not algorithm design. Deterministic components are dramatically easier to test than anything that depends on a network call, and designing the fallback path up front meant the "no API key" case was a tested feature rather than an afterthought.
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+Building TuneTracker made the gap between a *scoring function* and a *system* concrete: the interesting engineering was in the seams — swappable strategies, a retrieval layer that stays reproducible, and a fallback that keeps the product working when an AI service is unavailable. It also reframed "AI" for me as one component among many, valuable precisely when it's wrapped in guardrails (logging, tests, a deterministic default) rather than trusted blindly.
 
-[**Model Card**](model_card.md)
-
-Write 1 to 2 paragraphs here about what you learned:
-
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
-
-
-
+> The full **responsible-AI reflection** — how I collaborated with AI, one helpful and one flawed AI suggestion, and the system's limitations and biases — lives in the model card: [**model_card.md**](model_card.md).
