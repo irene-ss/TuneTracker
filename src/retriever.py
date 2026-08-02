@@ -20,6 +20,8 @@ from typing import Dict, List, Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from logging_config import log_retrieval
+
 
 # Default location of the descriptions file, resolved relative to the repo root
 # (this file lives in src/, so its parent's parent is the project root).
@@ -137,6 +139,8 @@ class Retriever:
             )
             if len(results) >= k:
                 break
+
+        log_retrieval(query, results)
         return results
 
 

@@ -2,3 +2,4 @@ pandas
 pytest
 streamlit
 scikit-learn
+anthropic  # optional: enables the LLM-backed explainer; the template fallback works without it

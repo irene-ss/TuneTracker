@@ -22,6 +22,7 @@ from recommender import (
     STRATEGIES,
 )
 from retriever import Retriever
+from logging_config import setup_logging, log_query, log_error
 
 
 def to_song(row: Dict) -> Song:
@@ -94,6 +95,7 @@ def choose_query() -> str:
 
 
 def main() -> None:
+    setup_logging()  # initialize logging to logs/app.log
     songs = [to_song(row) for row in load_songs("data/songs.csv")]
     retriever = Retriever.from_json()
 
@@ -113,11 +115,13 @@ def main() -> None:
     for profile_name, prefs, default_query in profiles:
         user = to_profile(prefs)
         query = query_override or default_query
+        log_query(query, k=3, mode=",".join(modes))
 
         print(f"\n=== {profile_name} ===")
         print("=" * 60)
 
         # 1) Retrieval first — text-based, independent of the profile/scoring.
+        # (retriever.search logs the retrieval itself.)
         print_retrieval(retriever, query, k=3)
 
         # 2) Scoring — attribute-based ranking, one block per selected strategy.
@@ -127,4 +131,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        # Log any unhandled error before it surfaces to the console.
+        log_error("main", exc)
+        raise
