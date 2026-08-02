@@ -21,7 +21,18 @@ The recommender looks at a few simple song features, including genre, mood, and 
 
 ---
 
-## 4. Data  
+## 4. Retrieval-Augmented Explanations (RAG)
+
+Beyond attribute scoring, TuneTracker adds a lightweight retrieval-augmented layer so it can surface songs from a free-text query and explain *why* a song fits in natural language.
+
+- **Retrieval.** Each song has a short text description covering its vibe, use-case, and similar artists. A `TfidfVectorizer` indexes these descriptions, and a free-text query (for example, "calm music for studying") is matched against them by cosine similarity to surface the most relevant songs. This runs entirely locally with no embedding API, so it behaves the same on any machine.
+- **Augmented explanation.** For a recommended song, the system combines its retrieved description with the numeric scoring reasons and generates one grounded sentence. It uses a language model when an API key is available and otherwise falls back to a template that still quotes the retrieved description, so the explanation is always grounded in real text rather than invented detail.
+
+This mirrors how larger retrieval-augmented systems work: retrieve relevant context first, then condition the generated text on that context instead of relying on the model's memory alone.
+
+---
+
+## 5. Data  
 
 The model uses a small catalog of 20 songs. The dataset includes a mix of genres such as pop, lofi, rock, jazz, ambient, indie pop, hip-hop, metal, and country, along with a variety of moods like happy, chill, intense, relaxed, and dreamy. No new data was added or removed for this version.
 
@@ -29,7 +40,7 @@ One limitation of the dataset is that it does not cover every style of music or 
 
 ---
 
-## 5. Strengths  
+## 6. Strengths  
 
 This system works well for users whose taste is fairly clear and easy to describe. It gives sensible results for profiles such as high-energy pop, calm lofi, and intense rock because those preferences are closely tied to the features the model uses.
 
@@ -37,7 +48,7 @@ The scoring also does a good job of matching obvious patterns, such as preferrin
 
 ---
 
-## 6. Limitations and Bias 
+## 7. Limitations and Bias 
 
 Where the system struggles or behaves unfairly. 
 
@@ -53,7 +64,13 @@ Limitations:
 - It rewards exact genre and mood matches very strongly, so a user with broader tastes can get stuck seeing only very similar songs.
 - The energy scoring is quite rigid. It uses an absolute energy gap and then gives no credit once the gap is large. That means a song can be unfairly ignored even if it is still a good fit for other reasons.
 
-## 7. Evaluation  
+Retrieval and strategy-choice limitations:
+- Retrieval is **lexical, not semantic**. TF-IDF matches on shared words, so a query like "study music" can miss a description that says "focus" or "concentration" unless those exact words appear. It has no understanding of synonyms or meaning.
+- Retrieval quality is only as good as the **descriptions**. The song descriptions are short and hand-written for this project, so a sparse, biased, or inaccurate description directly limits what a query can find and can quietly favor songs whose descriptions happen to use more common words.
+- **Strategy choice changes the answer, and there is no single "correct" strategy.** The same profile produces different rankings under Genre-First, Mood-First, and Energy-Focused. The system does not know which one a user actually wants, so the responsibility for picking the right lens falls on the user, and a poor choice can bury good matches.
+- Because the explanation is grounded in the retrieved description and the scoring reasons, a weak retrieval or a mismatched strategy still yields a fluent, confident-sounding sentence — which can make a questionable recommendation *look* well justified.
+
+## 8. Evaluation  
 
 I tested three example profiles: High-Energy Pop, Chill Lofi, and Deep Intense Rock. I looked at whether the recommendations changed in a way that matched each profile’s mood and energy.
 
@@ -63,13 +80,13 @@ I tested three example profiles: High-Energy Pop, Chill Lofi, and Deep Intense R
 
 ---
 
-## 8. Future Work  
+## 9. Future Work  
 
 I would like to improve the model by expanding the dataset to include many more styles of music, so it can better represent different listening tastes. I also want to add more user profiles to test how the system behaves for a wider range of people. In addition, I would make the algorithm more flexible so it is less likely to suggest repetitive songs and gives users a broader mix of recommendations.
 
 ---
 
-## 9. Personal Reflection  
+## 10. Personal Reflection  
 
 This project helped me understand how recommender systems work in a simple but meaningful way. I found it especially interesting to see how music apps use small signals like genre, mood, and energy to make recommendations that feel personal. I also learned that these systems can be useful, but they can also become too narrow or repetitive if they rely too heavily on a few features.
   
